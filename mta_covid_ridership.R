@@ -17,6 +17,11 @@ library(tigris)
 turnstile_2019 <- read_csv("https://api.qri.cloud/get/nyc-transit-data/turnstile_daily_counts_2019/body.csv?all=true")
 turnstile_2020 <- read_csv("https://api.qri.cloud/get/nyc-transit-data/turnstile_daily_counts_2020/body.csv?all=true")
 
+# if qri api does not work, these local versions can also be used
+#turnstile_2019 <- read_csv("input/mta_data_2019/body.csv")
+#turnstile_2020 <- read_csv("input/mta_data_2020/body.csv") # This version only goes to December 26, 2020
+
+
 # The combination of stop_name & daytime_routes produces a unique identifier for a subway stop  
 ts2019_month <- turnstile_2019 %>% 
   mutate(entries_exits = entries + exits) %>% 
@@ -193,6 +198,7 @@ ny_demographics <- ny_erase
 ## STEP 3a: Plot Remaining Percentage of Subway Usage in April 2020 compared to April 2019
 ts_combi_sf_04 <- filter(ts_combi_sf, month == "04") # Only look at April
 
+lines <- st_read("input/subway_lines/lines.shp")
 vir <- viridis(9)
 
 tmap_mode("view")
@@ -203,8 +209,8 @@ tm_shape(ny_demographics) +
               alpha = 0.6, 
               border.alpha = 0.5, 
               title = "Median Household Income in 2019, USD") +
-  #tm_shape(lines_shp)+
-  #tm_lines(col = "red", lwd = 1) +
+  tm_shape(lines)+
+  tm_lines(col = "red", lwd = 1) +
   tm_shape(ts_combi_sf_04) +
   tm_symbols(col = "remaining_ridership", 
              breaks = c(0, 10, 20, 30, 100),
@@ -248,30 +254,28 @@ lm_income_log <- lm(remaining_ridership ~ log(income_median), data = ts_combi_sf
 
 predicted_income_lin <- data.frame(pred = predict(lm_income_lin, ts_combi_sf_04), estimate = ts_combi_sf_04$income_median)
 predicted_income_log <- data.frame(pred = predict(lm_income_log, ts_combi_sf_04), estimate = ts_combi_sf_04$income_median)
-library(svglite)
+
 ggplot() + 
   geom_point(ts_combi_sf_04,mapping = aes(income_median,remaining_ridership)) +
   labs(title = "Remaining Ridership (April) vs. Median Income",
        subtitle = "Regression Analysis",
        x = 'Median Household Income, 2019 (USD)',
        y = "Remaining Ridership, 2020 vs. 2019 (%)") +
-  geom_line(color='red',data = predicted_income_lin, aes(x=estimate, y = pred)) +
-  geom_line(color='blue',data = predicted_income_log, aes(x=estimate, y = pred)) +
-  geom_text(mapping=aes(x = 150000, y = -3), color = 'red', size=2.5, hjust = "left", vjust="bottom",
+  geom_line(color = 'red',data = predicted_income_lin, aes(x = estimate, y = pred)) +
+  geom_line(color = 'blue',data = predicted_income_log, aes(x = estimate, y = pred)) +
+  geom_text(mapping = aes(x = 150000, y = -3), color = 'red', size = 2.5, hjust = "left", vjust="bottom",
             label = paste("ridership ~ income",
                           "\nAdj R2 = ", signif(summary(lm_income_lin)$adj.r.squared, 5),
                           "\nIntercept =", signif(lm_income_lin$coef[[1]],5 ),
                           "\nP =", signif(summary(lm_income_lin)$coef[2,4], 5))) +
-  geom_text(mapping=aes(x = 210000, y = 5), color = 'blue', size=2.5, hjust = "left", vjust="bottom",
+  geom_text(mapping=aes(x = 210000, y = 5), color = 'blue', size = 2.5, hjust = "left", vjust="bottom",
             label = paste("ridership ~ log(income)",
                           "\nAdj R2 = ", signif(summary(lm_income_log)$adj.r.squared, 5),
                           "\nIntercept =", signif(lm_income_log$coef[[1]],5 ),
                           "\nP =", signif(summary(lm_income_log)$coef[2,4], 5)))
-
-ggsave("PLOT_Linear.svg", width = 8, height = 6)
   
 
-
+# Race (in progress)
 lm_white <- lm(remaining_ridership ~ race_white, data = ts_combi_sf_04)
 summary(lm_white)
 predicted_white <- data.frame(pred = predict(lm_white, ts_combi_sf_04), estimate = ts_combi_sf_04$race_white)
