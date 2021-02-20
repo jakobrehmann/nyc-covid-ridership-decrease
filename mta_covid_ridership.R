@@ -5,21 +5,23 @@ library(viridisLite)
 library(sf)
 library(tigris)
 
+setwd("C:\\Users\\jakob\\projects\\nyc-covid-ridership-decrease")
+
 
 ### Step 1: Gather Turnstile Data
 # First, we gather the new york subway turnstile data for 2019 and 2020. Each turnstile block in each station logs how
 # many people have entered and exited the station in 4 hour intervals. In its raw form, it is difficult to link the 
-# turnstile data with coordiantes of each station, since unique keys linking the datasets áre not available. Therefore,
+# turnstile data with coordiantes of each station, since unique keys linking the datasets ?re not available. Therefore,
 # we used the processed datasets provided by Chris Whong, who completed the arduous process of manually linking datasets.
 # See the following medium article, which explains his data wrangling process:
 # https://medium.com/qri-io/taming-the-mtas-unruly-turnstile-data-c945f5f96ba0
 
-turnstile_2019 <- read_csv("https://api.qri.cloud/get/nyc-transit-data/turnstile_daily_counts_2019/body.csv?all=true")
-turnstile_2020 <- read_csv("https://api.qri.cloud/get/nyc-transit-data/turnstile_daily_counts_2020/body.csv?all=true")
+#turnstile_2019 <- read_csv("https://api.qri.cloud/get/nyc-transit-data/turnstile_daily_counts_2019/body.csv?all=true")
+#turnstile_2020 <- read_csv("https://api.qri.cloud/get/nyc-transit-data/turnstile_daily_counts_2020/body.csv?all=true")
 
 # if qri api does not work, these local versions can also be used
-#turnstile_2019 <- read_csv("input/mta_data_2019/body.csv")
-#turnstile_2020 <- read_csv("input/mta_data_2020/body.csv") # This version only goes to December 26, 2020
+turnstile_2019 <- read_csv("input/mta_data_2019/body.csv")
+turnstile_2020 <- read_csv("input/mta_data_2020/body.csv") # This version only goes to December 26, 2020
 
 
 # The combination of stop_name & daytime_routes produces a unique identifier for a subway stop  
@@ -77,6 +79,8 @@ ts_combi <- ts2019_month_clean %>%
   mutate(ver_long_match = (long_2019 == long_2020),
          ver_lat_match = (lat_2019 == lat_2020))
 
+view(anti_join(ts2019_month_clean,ts2020_month_clean, by = c('stop_name', 'daytime_routes', 'month')))
+view(anti_join(ts2020_month_clean,ts2019_month_clean, by = c('stop_name', 'daytime_routes', 'month')))
 
 # Verify and cleanup
 ver_long_combi <- (sum(ts_combi$ver_long_match) == length(ts_combi$ver_long_match))
@@ -116,10 +120,14 @@ ts_combi_clean  %>%
 # Turn long and latitute into a geometry  
 ts_combi_sf <- ts_combi_clean %>% 
   mutate(remaining_ridership = avg_entries_exits_2020 / avg_entries_exits_2019 * 100) %>% 
-  filter(remaining_ridership <= 100 ) %>% 
+  #filter(remaining_ridership <= 100 ) %>% 
   st_as_sf(coords = c('long', 'lat')) %>%
   st_set_crs(4326) 
 
+
+
+### new new new
+save(ts_combi_sf, file = "ts_combi_sf.Rda")
 ### Step 2: gather census data: 
 # Using the census api, we downloaded the geometries for each census tract, as well as
 # corresponding demographic information (e.g. income, race) 
@@ -159,13 +167,13 @@ ny_data_clean <- ny_data %>%
   pivot_wider(names_from = variable, values_from = estimate) %>% 
   transmute(GEOID = GEOID,
          NAME = NAME,
-         transport_pt = B08301_010 / B08301_001, 
-         transport_car = B08301_002 / B08301_001,
-         race_white = B02001_002 / B02001_001,
-         race_black = B02001_003 / B02001_001,
-         race_asian = B02001_005 / B02001_001,
-         race_other = B02001_007 / B02001_001,
-         race_2ormore = B02001_008 / B02001_001,
+         transport_pt = B08301_010 / B08301_001 * 100, 
+         transport_car = B08301_002 / B08301_001 * 100,
+         race_white = B02001_002 / B02001_001 * 100,
+         race_black = B02001_003 / B02001_001 * 100,
+         race_asian = B02001_005 / B02001_001 * 100,
+         race_other = B02001_007 / B02001_001 * 100,
+         race_2ormore = B02001_008 / B02001_001 * 100,
          income_median = B19013_001)
 
 ny <- ny_geometry %>% 
@@ -191,7 +199,9 @@ ny_erase <- st_erase(ny_erase, water_085)
 
 ny_demographics <- ny_erase
 
+save(ny_demographics, file = "ny_demographics.Rda")
 
+save(ts_combi_sf, file = "ts_combi_sf.Rda")
 ### STEP 3: Combine mta turnstile data with census demographic data
 
 
@@ -280,4 +290,61 @@ lm_white <- lm(remaining_ridership ~ race_white, data = ts_combi_sf_04)
 summary(lm_white)
 predicted_white <- data.frame(pred = predict(lm_white, ts_combi_sf_04), estimate = ts_combi_sf_04$race_white)
 
+
+# NETWORK
+
+xxx <- ts_combi_sf_04 %>% select(c("stop_name","daytime_routes","geometry")) 
+unique_lines <- unique(xxx$daytime_routes) %>% filter(x)
+unique_lines()  
+
+train1 <- xxx %>% filter(daytime_routes == "1")
+plot(as_sfnetwork(train1$geometry))
+
+library(tidyverse)
+library(sf)
+library(tmap)
+library(tidygraph)
+library(sfnetworks)
+
+
+
+nodes <- ts_combi_sf_04 %>% select(geometry)
+sfNet <- as_sfnetwork(nodes)
+plot(sfNet)
+
+
+bufsf))
+
+lines_net <- as_sfnetwork(lines)
+lines_net_cent <-  lines_net %>% 
+  activate(nodes) %>% 
+  mutate(centrality = centrality_betweenness()) %>% 
+  activate(edges) %>% 
+  mutate(centrality = centrality_edge_betweenness())
+
+edges_sf <- st_as_sf(lines_net_cent, "edges")
+nodes_sf <- st_as_sf(lines_net_cent, "nodes")
+tm_shape(edges_sf) + 
+  tm_lines(col = "centrality",palette = inferno(4, direction = -1)) +
+  tm_shape(nodes_sf) +
+  tm_dots(col = "centrality") +
+  tm_shape(ts_combi_sf_04) +
+  tm_symbols(col = "remaining_ridership", 
+             breaks = c(0, 10, 20, 30, 100),
+             palette = inferno(4, direction = -1),
+             size = 0.05, 
+             alpha = 1, 
+             title.col = "Remaining Ridership")
+
+gtfs_sf <- gtfs_as_sf(gtfs)
+routes_sf <- get_route_geometry(gtfs_sf, service_ids = service_ids)
+
+routes_sf <- routes_sf %>% 
+  inner_join(am_route_freq, by = 'route_id')
+
+
+
+
+
+### NEW STUFF
 
