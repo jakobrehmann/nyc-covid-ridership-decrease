@@ -2,7 +2,7 @@ library(shiny)
 library(tmap)
 library(viridis)
 library(tidyverse)
-
+setwd("C:\\Users\\jakob\\projects\\nyc-covid-ridership-decrease")
 
 monthStart <- function(x) {
   x <- as.POSIXlt(x)
@@ -33,33 +33,41 @@ no_covid <- data.frame("date" = no_covid_dates,
 COVID <- rbind(no_covid,covid_2) 
 
 
+load("net2.Rda")
 
 
 ###################### UI #########################
 
 ui <- fluidPage(
+  tabsetPanel(
+    tabPanel("MTA Subway Ridership - COVID",
   titlePanel("MTA Subway Ridership"),
-    sliderInput("date", "Time",
-                min = as.Date("2020-01-01"),
-                max =as.Date("2020-12-31"),
-                value=as.Date("2020-01-01"),
-                timeFormat="%b %Y", 
-                animate = animationOptions(interval = 100)),
+  splitLayout(
     radioButtons("demographic",
-                 "Demographic Data", 
-                 c("Median Income", 
-                   "Race: Percent White",
-                   "Race: Percent Black",
-                   "Race: Percent Asian",
-                   "Race: Percent Other",
-                   "Race: Percent 2orMore",
-                   "Primary Work Transport: PT",
-                   "Primary Work Transport: Car")),
+                           "Demographic Data", 
+                           c("Median Income", 
+                             "Race: Percent White",
+                             "Race: Percent Black",
+                             "Race: Percent Asian",
+                             "Race: Percent Other",
+                             "Race: Percent 2orMore",
+                             "Primary Work Transport: PT",
+                             "Primary Work Transport: Car")),
+              sliderInput("date", "Time",
+                          min = as.Date("2020-01-01"),
+                          max =as.Date("2020-12-31"),
+                          value=as.Date("2020-01-01"),
+                          timeFormat="%b %Y", 
+                          animate = animationOptions(interval = 100))              )
+    ,
   
   splitLayout(tmapOutput(outputId = "map"),
               plotOutput("covid")
               )
+  ),
   
+  tabPanel("Network Analysis",  splitLayout(tmapOutput(outputId = "cent1"),tmapOutput(outputId = "cent2")))
+  )
 )
 
 server <- function(input, output, session) { 
@@ -122,8 +130,30 @@ server <- function(input, output, session) {
         tm_polygons()
     
     }
-      #tm_dots(zindex = 401)
     
+  })
+  
+  output$cent1 <- renderTmap({
+    edges_sf <- net2 %>% st_as_sf("edges")
+    nodes_sf <- net2 %>% st_as_sf("nodes")
+    
+    
+    
+    tmap_mode("view")
+    tm_shape(edges_sf) + 
+      tm_lines(col = "gray50") +#"centrality") +
+      tm_shape(nodes_sf) +
+      tm_dots(col = "cent_degree", id = "stop_name")
+  })
+  output$cent2 <- renderTmap({
+    edges_sf <- net2 %>% st_as_sf("edges")
+    nodes_sf <- net2 %>% st_as_sf("nodes")
+    
+    tmap_mode("view")
+    tm_shape(edges_sf) + 
+      tm_lines(col = "gray50") +#"centrality") +
+      tm_shape(nodes_sf) +
+      tm_dots(col = "cent_btwn", id = "stop_name")
   })
   
   observe({

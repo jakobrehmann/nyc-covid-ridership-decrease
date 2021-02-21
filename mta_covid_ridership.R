@@ -79,8 +79,6 @@ ts_combi <- ts2019_month_clean %>%
   mutate(ver_long_match = (long_2019 == long_2020),
          ver_lat_match = (lat_2019 == lat_2020))
 
-view(anti_join(ts2019_month_clean,ts2020_month_clean, by = c('stop_name', 'daytime_routes', 'month')))
-view(anti_join(ts2020_month_clean,ts2019_month_clean, by = c('stop_name', 'daytime_routes', 'month')))
 
 # Verify and cleanup
 ver_long_combi <- (sum(ts_combi$ver_long_match) == length(ts_combi$ver_long_match))
@@ -120,7 +118,6 @@ ts_combi_clean  %>%
 # Turn long and latitute into a geometry  
 ts_combi_sf <- ts_combi_clean %>% 
   mutate(remaining_ridership = avg_entries_exits_2020 / avg_entries_exits_2019 * 100) %>% 
-  #filter(remaining_ridership <= 100 ) %>% 
   st_as_sf(coords = c('long', 'lat')) %>%
   st_set_crs(4326) 
 
@@ -290,61 +287,4 @@ lm_white <- lm(remaining_ridership ~ race_white, data = ts_combi_sf_04)
 summary(lm_white)
 predicted_white <- data.frame(pred = predict(lm_white, ts_combi_sf_04), estimate = ts_combi_sf_04$race_white)
 
-
-# NETWORK
-
-xxx <- ts_combi_sf_04 %>% select(c("stop_name","daytime_routes","geometry")) 
-unique_lines <- unique(xxx$daytime_routes) %>% filter(x)
-unique_lines()  
-
-train1 <- xxx %>% filter(daytime_routes == "1")
-plot(as_sfnetwork(train1$geometry))
-
-library(tidyverse)
-library(sf)
-library(tmap)
-library(tidygraph)
-library(sfnetworks)
-
-
-
-nodes <- ts_combi_sf_04 %>% select(geometry)
-sfNet <- as_sfnetwork(nodes)
-plot(sfNet)
-
-
-bufsf))
-
-lines_net <- as_sfnetwork(lines)
-lines_net_cent <-  lines_net %>% 
-  activate(nodes) %>% 
-  mutate(centrality = centrality_betweenness()) %>% 
-  activate(edges) %>% 
-  mutate(centrality = centrality_edge_betweenness())
-
-edges_sf <- st_as_sf(lines_net_cent, "edges")
-nodes_sf <- st_as_sf(lines_net_cent, "nodes")
-tm_shape(edges_sf) + 
-  tm_lines(col = "centrality",palette = inferno(4, direction = -1)) +
-  tm_shape(nodes_sf) +
-  tm_dots(col = "centrality") +
-  tm_shape(ts_combi_sf_04) +
-  tm_symbols(col = "remaining_ridership", 
-             breaks = c(0, 10, 20, 30, 100),
-             palette = inferno(4, direction = -1),
-             size = 0.05, 
-             alpha = 1, 
-             title.col = "Remaining Ridership")
-
-gtfs_sf <- gtfs_as_sf(gtfs)
-routes_sf <- get_route_geometry(gtfs_sf, service_ids = service_ids)
-
-routes_sf <- routes_sf %>% 
-  inner_join(am_route_freq, by = 'route_id')
-
-
-
-
-
-### NEW STUFF
 

@@ -7,13 +7,13 @@ setwd("C:\\Users\\jakob\\projects\\nyc-covid-ridership-decrease")
 
 
 # get a list of GTFS.zip files
-my_gtfs_feeds <- list.files(path = ".", pattern =".zip", full.names = T)
+my_gtfs_feeds <- list.files(path = "input\\", pattern =".zip", full.names = T)
 
 # load function
 source("gtfs_to_igraph.R")
 
 # run function
-g <- gtfs_to_igraph(list_gtfs = my_gtfs_feeds,  dist_threshold =30 , save_muxviz =F)
+g <- gtfs_to_igraph(list_gtfs = my_gtfs_feeds,  dist_threshold =30 , save_muxviz =FALSE)
 
 g2 <- as_tbl_graph(g, directed = TRUE) 
 
@@ -35,12 +35,16 @@ net2 <- net %>% convert(to_spatial_explicit) %>%
   mutate(centrality = centrality_edge_betweenness())
   
 
+
+save(net2, file = "net2.Rda")
 edges_sf <- net2 %>% st_as_sf("edges")
 nodes_sf <- net2 %>% st_as_sf("nodes")
+
 
 
 tmap_mode("view")
 tm_shape(edges_sf) + 
   tm_lines(col = "gray50") +#"centrality") +
   tm_shape(nodes_sf) +
-  tm_dots(col = "cent_degree", id = "stop_name")
+  tm_dots(col = "cent_btwn", id = "stop_name")
+
