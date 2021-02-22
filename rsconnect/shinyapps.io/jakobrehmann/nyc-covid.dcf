@@ -1,0 +1,12 @@
+name: nyc-covid
+title: nyc-covid
+username:
+account: jakobrehmann
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 3677322
+bundleId: 4256735
+url: https://jakobrehmann.shinyapps.io/nyc-covid/
+when: 1614000723.70999
+asMultiple: FALSE
+asStatic: FALSE

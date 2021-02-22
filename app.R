@@ -2,6 +2,7 @@ library(shiny)
 library(tmap)
 library(viridis)
 library(tidyverse)
+library()
 setwd("C:\\Users\\jakob\\projects\\nyc-covid-ridership-decrease")
 
 monthStart <- function(x) {
@@ -42,8 +43,8 @@ ui <- fluidPage(
   tabsetPanel(
     tabPanel("MTA Subway Ridership - COVID",
   titlePanel("MTA Subway Ridership"),
-  splitLayout(
-    radioButtons("demographic",
+  #splitLayout(
+    selectInput("demographic",
                            "Demographic Data", 
                            c("Median Income", 
                              "Race: Percent White",
@@ -53,13 +54,14 @@ ui <- fluidPage(
                              "Race: Percent 2orMore",
                              "Primary Work Transport: PT",
                              "Primary Work Transport: Car")),
-              sliderInput("date", "Time",
+    sliderInput("date", "Time",
                           min = as.Date("2020-01-01"),
                           max =as.Date("2020-12-31"),
                           value=as.Date("2020-01-01"),
                           timeFormat="%b %Y", 
-                          animate = animationOptions(interval = 100))              )
-    ,
+                          animate = animationOptions(interval = 100))              
+   # )
+  ,
   
   splitLayout(tmapOutput(outputId = "map"),
               plotOutput("covid")
@@ -82,7 +84,8 @@ server <- function(input, output, session) {
                     alpha = 0.6, 
                     border.alpha = 0.5, 
                     title = "Median Household Income in 2019, USD",
-                    id = "income_median")
+                    id = "income_median") +
+        tm_layout(legend.position = c("right", "bottom"), title.position = c('right', 'bottom'))
     } else if(input$demographic == "Race: Percent White")  {
       tm_shape(ny_demographics) +
         tm_polygons(col = "race_white", 
@@ -133,6 +136,11 @@ server <- function(input, output, session) {
     
   })
   
+  output$covid <- renderPlot({
+    g1 <- subset(COVID, date == input$date)
+    ggplot(COVID, aes(x = date, y = cases_per_day)) + geom_point() + 
+      geom_point(data = g1, colour = "red", mapping = aes(size = 10),show.legend = FALSE )})
+  
   output$cent1 <- renderTmap({
     edges_sf <- net2 %>% st_as_sf("edges")
     nodes_sf <- net2 %>% st_as_sf("nodes")
@@ -171,10 +179,7 @@ server <- function(input, output, session) {
     }) 
   })
   
-  output$covid <- renderPlot({
-    g1 <- subset(COVID, date == input$date)
-    ggplot(COVID, aes(x = date, y = cases_per_day)) + geom_point() + 
-    geom_point(data = g1, colour = "red", mapping = aes(size = 10) )})
+
   
   output$date_text <- renderPrint( {str(input$date)})
 }
